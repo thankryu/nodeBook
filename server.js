@@ -116,6 +116,19 @@ app.post('/login', passport.authenticate('local', {
    response.redirect('/');
 });
 
+app.get('/mypage', checkLogin, function(request, response){
+  console.log(request.user);
+  response.render('mypage.ejs', {user : request.user})
+})
+// 로그인 확인
+function checkLogin(request, response, next){
+  if(request.user){
+    next()
+  } else {
+    response.send('로그인 안하셨는데요')
+  }
+}
+
 passport.use(new LocalStrategy({
   usernameField: 'id',
   passwordField: 'pw',
@@ -141,11 +154,10 @@ passport.use(new LocalStrategy({
 // done ( 서버에러, 성공 시 사용자 data, 메시지)
 // id를 이용해서 세션을 저장시키는 코드(로그인 성공 시 발동)
 passport.serializeUser(function(user, done){
-  console.log('user1', user)
   done(null, user.id)
 });
 // 세션 아이디를 바탕으로 이 유저의 정보를 DB에서 찾아주세요.
-passport.deserializeUser(function(id, done){
+passport.deserializeUser(function(id, done){  
   db.collection('login').findOne({ id: id }, function (error, result) {
     done(null, result)
   })  
@@ -225,6 +237,55 @@ app.get('/search', (request, response) =>{
   })
 })
 
+// app.use(미들웨어를 쓰겠다)
+// 미들웨어 요청과 응답 사이에 실행되는 코드
+app.use('/shop', require('./routes/shop.js'))
+app.use('/board/sub', require('./routes/board.js'))
 
+// 멀터 라이브러리 사용법
+let multer = require('multer');
+// diskStorage = hdd에 저장해주세요
+// memoryStorage = 램에 저장해주세요 (휘발성)
+var storage = multer.diskStorage({
+  // 이미지 폴더 경로
+  destination : function(req, file, cb){
+    cb(null, './public/image')    
+  },
+  // 파일 이름
+  filename : function (req, file, cb){    
+    cb(null, file.originalname)
+  }
+});
 
+var path = require('path');
 
+var upload = multer({
+  storage : storage,
+  fileFilter: function (req, file, callback) {
+    var ext = path.extname(file.originalname);
+    if(ext !== '.png' && ext !== '.jpg' && ext !== '.jpeg') {
+        return callback(new Error('PNG, JPG만 업로드하세요'))
+    }
+    callback(null, true)
+    },
+    limits:{
+        fileSize: 1024 * 1024
+    }
+})  
+
+// 파일 업로드 페이지
+app.get('/upload', function(request, response){
+  response.render('upload.ejs')
+})
+
+app.post('/upload', upload.single('profile'), function(request, response){
+  response.send('응답완료')
+})
+// 여러개 받을경우
+app.post('/uploadArray', upload.array('profile', 10), function(request, response){
+  response.send('응답완료')
+})
+
+app.get('/image/:imageName', function(request, response){
+  response.sendFile(__dirname + '/public/image/'+request.params.imageName)
+})
