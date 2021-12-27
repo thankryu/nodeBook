@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <!-- Required meta tags -->
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-F3w7mX95PdgyTmZZMECAngseQB83DfGTowi0iMjiWaeVhAn4FJkqJByhZMI3AhiU" crossorigin="anonymous">
+
+    <!-- Option 1: Bootstrap Bundle with Popper -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.1/dist/js/bootstrap.bundle.min.js" integrity="sha384-/bQdsTh/da6pkI1MST/rWKFNjaCP5gBSY4sEBT38Q/9RBh9AH40zEOg7Hlq2THRZ" crossorigin="anonymous"></script>
+
+    <script src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
+
+    <script src="../css/chat.css" type="text/css"></script>
+
+
+
+    <title>Hello, world!</title>
+  </head>
+  <body>
+    <nav class="navbar navbar-expand-lg navbar-light bg-light">
+      <div class="container-fluid">
+        <a class="navbar-brand" href="/">Todo App</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarSupportedContent">
+          <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+            <li class="nav-item">
+              <a class="nav-link active" aria-current="page" href="/">Home</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="/write">Write</a>
+            </li>            
+            <li class="nav-item">
+              <a class="nav-link" href="/list">List</a>
+            </li>
+          </ul>
+          <form class="d-flex">
+            <input class="form-control me-2" type="search" placeholder="Search" aria-label="Search">
+            <button class="btn btn-outline-success" type="submit">Search</button>
+          </form>
+        </div>
+      </div>
+    </nav>
+    
+    <div class="container p-4 detail">
+
+        <div class="row">
+          <div class="col-3">
+            <ul class="list-group chat-list">
+
+              <% for (var i=0; i < data.length ; i++){ %>
+                <li class="list-group-item" data-id="<%= data[i]._id %>">
+                  <h6> <%= data[i].title %> </h6>     
+                  <h6 class="text-small"> <%= data[i].member[0] %> </h6>
+                </li>
+              <% } %>
+            </ul> 
+           </div>
+      
+           <div class="col-9 p-0">
+             <div class="chat-room">
+                <ul class="list-group chat-content">
+                  <li><span class="chat-box mine">채팅방1 내용</span></li>
+                </ul>
+              <div class="input-group">
+                <input class="form-control" id="chat-input">
+                <button class="btn btn-secondary" id="send">전송</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      
+      </div> 
+
+      <script>
+        let checkChatId;        
+        let eventSource;
+        $('.list-group-item').click(function(){
+          $('.chat-content').html('');
+          checkChatId = this.dataset.id;
+          
+          if(eventSource != undefined ){
+            eventSource.close()
+          }
+          
+          // 프론트 엔드에서 실시간 소통 채널 여는법
+          eventSource = new EventSource('/message/'+ checkChatId);          
+          eventSource.addEventListener('test', function(e){                                              
+            console.log(JSON.parse(e.data));
+            let chatData = JSON.parse(e.data);
+            chatData.forEach( function(i) {
+              $('.chat-content').append('<li><span class="chat-box">'+ i.content +'</span></li>')
+            });
+          });
+        })
+        $('#send').click(function(){
+          let chatContent = $('#chat-input').val();
+          let sendData = {
+            parent : checkChatId,           
+            content : chatContent
+          }
+          $.post('/message', sendData).then(()=>{
+
+          })
+        })
+
+        $('.list-group-item').click(function (){
+          $(this).css('background-color', '#eee');
+          지금누른채팅방id = $(this).attr('data-id');
+        });
+      </script>
+
+  </body>
+</html>

@@ -8,6 +8,7 @@ app.use(methodOverride('_method'))
 app.set('view engine', 'ejs');
 require('dotenv').config()
 
+
 // 기존 db접속 npm install dotenv 을 사용하여 .env 파일 사용
 // var db;
 // MongoClient.connect('mongodb+srv://veriz:1234@cluster0.p0udg.mongodb.net/myFirstDatabase?retryWrites=true&w=majority', function(error, client){
@@ -54,17 +55,12 @@ app.get('/pet', function(request, response){
 });
 
 app.get('/', function(request, response){
-    console.log(exports.storeSetter('1', 'abc'));
-    console.log(exports.storeGetter('1'));
     response.sendFile(__dirname+'/index.html');
 });
 
 app.get('/write', function(request, response){
   response.render('write.ejs')    
 });
-
-
-
 
 
 app.get('/list', function(request, response){
@@ -90,7 +86,6 @@ app.get('/edit/:id', function(request, response){
 
 app.put('/edit', function(request, response){
   // 폼에 담긴 제목, 날짜 데이터를 가지고 db.collection에 업데이트 함
-  console.log(request.body);
   db.collection('post').updateOne({_id : parseInt(request.body.id)}, {$set : {title : request.body.title, date : request.body.date }}, function(error, result){
     response.redirect('/list');
   })
@@ -289,3 +284,66 @@ app.post('/uploadArray', upload.array('profile', 10), function(request, response
 app.get('/image/:imageName', function(request, response){
   response.sendFile(__dirname + '/public/image/'+request.params.imageName)
 })
+
+const { ObjectId } = require('mongodb');
+
+app.post('/chatroom', checkLogin, function(request, response){
+  let data = {
+    title : '채팅방',    
+    member : [ ObjectId(request.body.chatId), request.user._id],
+    date : new Date()
+  }
+  db.collection('chatroom').insertOne(data).then(function(result){  
+    response.send('저장완료')
+  })
+})
+
+app.get('/chat', checkLogin, function(request, response){ 
+  db.collection('chatroom').find({ member : request.user._id }).toArray().then((result)=>{    
+    response.render('chat.ejs', {data : result})
+  })
+
+}); 
+
+app.post('/message', checkLogin, function(request, response){
+  let saveDate = {
+    parent : request.body.parent,
+    content : request.body.content,
+    userid : request.user._id,
+    date : new Date()
+  }
+  db.collection('message').insertOne(saveDate).then(()=>{    
+    response.send('db저장성공')
+  }).catch(()=>{
+    console.log('실패요');
+  })
+})
+
+app.get('/message/:parentid', checkLogin, function(request, response){ 
+  response.writeHead(200, {
+    "Connection": "keep-alive",
+    "Content-Type": "text/event-stream",
+    "Cache-Control": "no-cache",
+  });
+  db.collection('message').find({ parent: request.params.parentid}).toArray().then((result)=>{    
+    // response.write('event: test\n');
+    // response.write('data: 안녕하세요\n\n');
+    console.log("response:"+JSON.stringify(result));
+    response.write('event: test\n');
+    response.write(`data: ${JSON.stringify(result)}\n\n`);
+  }).catch(()=>{
+    console.log('실패시')
+  })
+
+  const pipeline = [
+    { $match : {'fullDocument.parent' : request.params.parentid} }
+  ]
+  const collection = db.collection('message');
+  const changeStream = collection.watch(pipeline);
+  changeStream.on('change', (result)=>{
+    console.log('변경 결과', result.fullDocument);
+    response.write('event: test\n');
+    response.write(`data: ${JSON.stringify([result.fullDocument])}\n\n`);
+  })
+  
+});
